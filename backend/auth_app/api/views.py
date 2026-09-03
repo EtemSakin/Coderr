@@ -1,9 +1,16 @@
+from django.shortcuts import get_object_or_404
 from rest_framework import generics, status
 from rest_framework.authtoken.models import Token
-from rest_framework.permissions import AllowAny
+from rest_framework.exceptions import PermissionDenied
+from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 
-from auth_app.api.serializers import LoginSerializer, RegistrationSerializer
+from auth_app.api.serializers import (
+    LoginSerializer,
+    ProfileSerializer,
+    RegistrationSerializer,
+)
+from auth_app.models import Profile
 
 
 class RegistrationView(generics.GenericAPIView):
@@ -38,3 +45,25 @@ class LoginView(generics.GenericAPIView):
             'username': user.username,
         }
         return Response(data, status=status.HTTP_200_OK)
+
+
+class ProfileView(generics.GenericAPIView):
+    serializer_class = ProfileSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_profile(self, user_id):
+        queryset = Profile.objects.select_related('user')
+        return get_object_or_404(queryset, user_id=user_id)
+
+    def get(self, request, user_id):
+        profile = self.get_profile(user_id)
+        return Response(self.get_serializer(profile).data)
+
+    def patch(self, request, user_id):
+        if request.user.id != user_id:
+            raise PermissionDenied('You can only edit your own profile.')
+        profile = self.get_profile(user_id)
+        serializer = self.get_serializer(profile, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(serializer.data, status=status.HTTP_200_OK)
