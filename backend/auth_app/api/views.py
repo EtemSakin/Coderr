@@ -10,7 +10,7 @@ from auth_app.api.serializers import (
     ProfileSerializer,
     RegistrationSerializer,
 )
-from auth_app.models import Profile
+from auth_app.models import Profile, User
 
 
 class RegistrationView(generics.GenericAPIView):
@@ -63,7 +63,27 @@ class ProfileView(generics.GenericAPIView):
         if request.user.id != user_id:
             raise PermissionDenied('You can only edit your own profile.')
         profile = self.get_profile(user_id)
-        serializer = self.get_serializer(profile, data=request.data, partial=True)
+        serializer = self.get_serializer(
+            profile,
+            data=request.data,
+            partial=True,
+        )
         serializer.is_valid(raise_exception=True)
         serializer.save()
         return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+class BusinessProfileListView(generics.ListAPIView):
+    serializer_class = ProfileSerializer
+    permission_classes = [AllowAny]
+    queryset = Profile.objects.select_related('user').filter(
+        user__type=User.BUSINESS
+    )
+
+
+class CustomerProfileListView(generics.ListAPIView):
+    serializer_class = ProfileSerializer
+    permission_classes = [AllowAny]
+    queryset = Profile.objects.select_related('user').filter(
+        user__type=User.CUSTOMER
+    )
