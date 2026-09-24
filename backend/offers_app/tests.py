@@ -121,11 +121,13 @@ class OfferApiTests(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
     def test_offer_list_is_public_and_paginated(self):
+        self.create_offer(self.other_business, 'Video Editing', 80, 8)
         response = self.client.get('/api/offers/')
+        limited = self.client.get('/api/offers/?page_size=1')
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(response.data['count'], 1)
-        self.assertEqual(len(response.data['results']), 1)
-        self.assertEqual(response.data['results'][0]['user'], self.business.id)
+        self.assertEqual(response.data['count'], 2)
+        self.assertEqual(len(response.data['results']), 2)
+        self.assertEqual(len(limited.data['results']), 1)
 
     def test_offer_list_supports_search_and_filters(self):
         self.create_offer(self.other_business, 'Video Editing', 80, 8)
@@ -134,9 +136,11 @@ class OfferApiTests(APITestCase):
             f'/api/offers/?creator_id={self.business.id}'
         )
         delivery = self.client.get('/api/offers/?max_delivery_time=3')
+        price = self.client.get('/api/offers/?min_price=50')
         self.assertEqual(search.data['count'], 1)
         self.assertEqual(creator.data['count'], 1)
         self.assertEqual(delivery.data['count'], 1)
+        self.assertEqual(price.data['count'], 1)
 
     def test_offer_list_orders_by_min_price(self):
         expensive = self.create_offer(
@@ -185,11 +189,8 @@ class OfferApiTests(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
         self.assertFalse(Offer.objects.filter(id=self.offer.id).exists())
 
-
     def test_offer_detail_is_public(self):
         detail = self.offer.details.first()
         response = self.client.get(f'/api/offerdetails/{detail.id}/')
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data['id'], detail.id)
-
-

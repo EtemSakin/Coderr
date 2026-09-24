@@ -12,18 +12,23 @@ from orders_app.models import Order
 class OrderViewSet(
     mixins.ListModelMixin,
     mixins.CreateModelMixin,
+    mixins.RetrieveModelMixin,
     mixins.UpdateModelMixin,
+    mixins.DestroyModelMixin,
     viewsets.GenericViewSet,
 ):
     serializer_class = OrderSerializer
     permission_classes = [IsAuthenticated, OrderPermission]
-    http_method_names = ['get', 'post', 'patch', 'head', 'options']
+    http_method_names = ['get', 'post', 'patch', 'delete', 'head', 'options']
 
     def get_queryset(self):
         user = self.request.user
-        queryset = Order.objects.filter(
-            Q(customer_user=user) | Q(business_user=user)
-        )
+        if self.action == 'destroy' and user.is_staff:
+            queryset = Order.objects.all()
+        else:
+            queryset = Order.objects.filter(
+                Q(customer_user=user) | Q(business_user=user)
+            )
         return queryset.select_related(
             'customer_user', 'business_user', 'offer_detail'
         ).order_by('-created_at')

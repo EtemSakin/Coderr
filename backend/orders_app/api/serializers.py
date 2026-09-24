@@ -23,6 +23,7 @@ class OrderSerializer(serializers.ModelSerializer):
             'delivery_time_in_days',
             'price',
             'features',
+            'offer_type',
             'status',
             'created_at',
             'updated_at',
@@ -37,6 +38,7 @@ class OrderSerializer(serializers.ModelSerializer):
             'delivery_time_in_days',
             'price',
             'features',
+            'offer_type',
             'created_at',
             'updated_at',
         ]
@@ -71,4 +73,5 @@ class OrderSerializer(serializers.ModelSerializer):
             delivery_time_in_days=detail.delivery_time_in_days,
             price=detail.price,
             features=list(detail.features),
+            offer_type=detail.offer_type,
         )

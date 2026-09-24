@@ -37,6 +37,12 @@ class Order(models.Model):
     delivery_time_in_days = models.PositiveIntegerField()
     price = models.DecimalField(max_digits=10, decimal_places=2)
     features = models.JSONField(default=list)
+    offer_type = models.CharField(
+        max_length=10,
+        choices=OfferDetail.OFFER_TYPE_CHOICES,
+        blank=True,
+        default='',
+    )
     status = models.CharField(
         max_length=20,
         choices=STATUS_CHOICES,

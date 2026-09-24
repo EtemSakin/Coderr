@@ -22,11 +22,15 @@ from offers_app.models import Offer, OfferDetail
 
 class OfferFilter(FilterSet):
     creator_id = NumberFilter(field_name='creator_id')
+    min_price = NumberFilter(method='filter_min_price')
     max_delivery_time = NumberFilter(method='filter_max_delivery_time')
 
     class Meta:
         model = Offer
         fields = []
+
+    def filter_min_price(self, queryset, name, value):
+        return queryset.filter(min_price__gte=value)
 
     def filter_max_delivery_time(self, queryset, name, value):
         return queryset.filter(min_delivery_time__lte=value)

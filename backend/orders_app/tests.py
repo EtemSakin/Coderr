@@ -48,6 +48,7 @@ class OrderApiTests(APITestCase):
             delivery_time_in_days=self.detail.delivery_time_in_days,
             price=self.detail.price,
             features=list(self.detail.features),
+            offer_type=self.detail.offer_type,
             status=status_value,
         )
 
@@ -61,7 +62,7 @@ class OrderApiTests(APITestCase):
         order = Order.objects.get()
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         self.assertEqual(order.business_user, self.business)
-        self.assertEqual(order.title, self.detail.title)
+        self.assertEqual(order.offer_type, OfferDetail.BASIC)
         self.assertEqual(order.status, Order.IN_PROGRESS)
 
     def test_business_cannot_create_order(self):
@@ -106,8 +107,10 @@ class OrderApiTests(APITestCase):
         )
         self.client.force_authenticate(user=self.customer)
         response = self.client.get('/api/orders/')
+        detail = self.client.get(f'/api/orders/{order.id}/')
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual([item['id'] for item in response.data], [order.id])
+        self.assertEqual(detail.status_code, status.HTTP_200_OK)
 
     def test_business_can_update_own_order_status(self):
         order = self.create_order()
@@ -142,6 +145,16 @@ class OrderApiTests(APITestCase):
         )
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
+    def test_staff_can_delete_order(self):
+        order = self.create_order()
+        admin = self.create_user('admin', User.CUSTOMER)
+        admin.is_staff = True
+        admin.save(update_fields=['is_staff'])
+        self.client.force_authenticate(user=admin)
+        response = self.client.delete(f'/api/orders/{order.id}/')
+        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
+        self.assertFalse(Order.objects.filter(id=order.id).exists())
+
     def test_order_count_endpoints_are_public(self):
         self.create_order()
         self.create_order(Order.COMPLETED)
@@ -151,4 +164,3 @@ class OrderApiTests(APITestCase):
         )
         self.assertEqual(progress.data['order_count'], 1)
         self.assertEqual(completed.data['completed_order_count'], 1)
-
