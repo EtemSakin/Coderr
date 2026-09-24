@@ -1,8 +1,23 @@
-from django.urls import reverse
+import tempfile
+from io import BytesIO
+
+from django.core.files.uploadedfile import SimpleUploadedFile
+from django.test import override_settings
+from PIL import Image
 from rest_framework import status
 from rest_framework.test import APITestCase
 
 from auth_app.models import Profile, User
+
+
+def image_file(name='test.png'):
+    buffer = BytesIO()
+    Image.new('RGB', (1, 1)).save(buffer, format='PNG')
+    return SimpleUploadedFile(
+        name,
+        buffer.getvalue(),
+        content_type='image/png',
+    )
 
 
 class AuthApiTests(APITestCase):
@@ -80,6 +95,19 @@ class AuthApiTests(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(user.first_name, 'Etem')
         self.assertEqual(user.profile.location, 'Cologne')
+
+    def test_user_can_upload_profile_image(self):
+        user = self.create_user('customer', User.CUSTOMER)
+        self.client.force_authenticate(user=user)
+        with tempfile.TemporaryDirectory() as media_root:
+            with override_settings(MEDIA_ROOT=media_root):
+                response = self.client.patch(
+                    f'/api/profile/{user.id}/',
+                    {'file': image_file('profile.png')},
+                    format='multipart',
+                )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertIn('/media/profile_images/', response.data['file'])
 
     def test_user_cannot_update_another_profile(self):
         user = self.create_user('customer', User.CUSTOMER)

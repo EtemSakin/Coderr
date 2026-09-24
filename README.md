@@ -120,9 +120,21 @@ ALLOWED_HOSTS=127.0.0.1,localhost
 
 The real `.env` file is excluded from Git and must not be committed.
 
+## Tests and Coverage
+
+Run the complete API test suite from the repository root:
+
+```powershell
+coverage erase
+coverage run backend\manage.py test auth_app offers_app orders_app reviews_app
+coverage report -m
+```
+
+The coverage configuration excludes migrations, test modules, and Django entry-point files so the report focuses on the application code.
+
 ## Uploaded Files
 
-Profile images and offer images are stored locally in the `backend/media/` directory during development. The media directory is excluded from Git.
+Profile images and offer images are stored locally in the `backend/media/` directory during development. The media directory is excluded from Git. With `DEBUG=True`, Django serves these files from the `/media/` URL during local development.
 
 ## Database
 

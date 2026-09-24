@@ -1,9 +1,25 @@
+import tempfile
+from io import BytesIO
+
+from django.core.files.uploadedfile import SimpleUploadedFile
+from django.test import override_settings
+from PIL import Image
 from rest_framework import status
 from rest_framework.test import APITestCase
 
 from auth_app.models import Profile, User
 from offers_app.api.serializers import OfferSerializer
 from offers_app.models import Offer, OfferDetail
+
+
+def image_file(name='test.png'):
+    buffer = BytesIO()
+    Image.new('RGB', (1, 1)).save(buffer, format='PNG')
+    return SimpleUploadedFile(
+        name,
+        buffer.getvalue(),
+        content_type='image/png',
+    )
 
 
 class OfferApiTests(APITestCase):
@@ -79,7 +95,7 @@ class OfferApiTests(APITestCase):
         }
         response = self.client.post('/api/offers/', data, format='json')
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
-        self.assertEqual(response.data['creator'], self.business.id)
+        self.assertEqual(response.data['user'], self.business.id)
         self.assertEqual(len(response.data['details']), 3)
 
     def test_customer_cannot_create_offer(self):
@@ -110,6 +126,7 @@ class OfferApiTests(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data['count'], 1)
         self.assertEqual(len(response.data['results']), 1)
+        self.assertEqual(response.data['results'][0]['user'], self.business.id)
 
     def test_offer_list_supports_search_and_filters(self):
         self.create_offer(self.other_business, 'Video Editing', 80, 8)
@@ -142,6 +159,18 @@ class OfferApiTests(APITestCase):
         self.assertEqual(self.offer.title, 'Updated Logo')
         self.assertEqual(basic.title, 'Updated Basic')
 
+    def test_owner_can_upload_offer_image(self):
+        self.client.force_authenticate(user=self.business)
+        with tempfile.TemporaryDirectory() as media_root:
+            with override_settings(MEDIA_ROOT=media_root):
+                response = self.client.patch(
+                    f'/api/offers/{self.offer.id}/',
+                    {'image': image_file('offer.png')},
+                    format='multipart',
+                )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertIn('/media/offer_images/', response.data['image'])
+
     def test_non_owner_cannot_update_offer(self):
         self.client.force_authenticate(user=self.other_business)
         response = self.client.patch(
@@ -156,6 +185,18 @@ class OfferApiTests(APITestCase):
         response = self.client.delete(f'/api/offers/{self.offer.id}/')
         self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
         self.assertFalse(Offer.objects.filter(id=self.offer.id).exists())
+
+    def test_put_is_not_allowed_for_offers(self):
+        self.client.force_authenticate(user=self.business)
+        response = self.client.put(
+            f'/api/offers/{self.offer.id}/',
+            {'title': 'Blocked'},
+            format='json',
+        )
+        self.assertEqual(
+            response.status_code,
+            status.HTTP_405_METHOD_NOT_ALLOWED,
+        )
 
     def test_offer_detail_is_public(self):
         detail = self.offer.details.first()

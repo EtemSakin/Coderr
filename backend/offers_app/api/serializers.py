@@ -1,3 +1,4 @@
+from django.db import transaction
 from django.db.models import Min
 from rest_framework import serializers
 
@@ -25,7 +26,10 @@ class OfferDetailSerializer(serializers.ModelSerializer):
 
 
 class OfferSerializer(serializers.ModelSerializer):
-    creator = serializers.PrimaryKeyRelatedField(read_only=True)
+    user = serializers.PrimaryKeyRelatedField(
+        source='creator',
+        read_only=True,
+    )
     details = OfferDetailSerializer(many=True)
     min_price = serializers.SerializerMethodField()
     min_delivery_time = serializers.SerializerMethodField()
@@ -34,7 +38,7 @@ class OfferSerializer(serializers.ModelSerializer):
         model = Offer
         fields = [
             'id',
-            'creator',
+            'user',
             'title',
             'image',
             'description',
@@ -44,7 +48,7 @@ class OfferSerializer(serializers.ModelSerializer):
             'min_price',
             'min_delivery_time',
         ]
-        read_only_fields = ['id', 'creator', 'created_at', 'updated_at']
+        read_only_fields = ['id', 'user', 'created_at', 'updated_at']
 
     def get_min_price(self, obj):
         value = getattr(obj, 'min_price', None)
@@ -72,6 +76,7 @@ class OfferSerializer(serializers.ModelSerializer):
             )
         return value
 
+    @transaction.atomic
     def create(self, validated_data):
         details_data = validated_data.pop('details')
         offer = Offer.objects.create(**validated_data)
@@ -82,6 +87,7 @@ class OfferSerializer(serializers.ModelSerializer):
         for detail_data in details_data:
             OfferDetail.objects.create(offer=offer, **detail_data)
 
+    @transaction.atomic
     def update(self, instance, validated_data):
         details_data = validated_data.pop('details', None)
         instance = super().update(instance, validated_data)

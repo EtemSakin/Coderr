@@ -42,6 +42,14 @@ class OfferViewSet(viewsets.ModelViewSet):
     search_fields = ['title', 'description']
     ordering_fields = ['updated_at', 'min_price']
     ordering = ['-updated_at']
+    http_method_names = [
+        'get',
+        'post',
+        'patch',
+        'delete',
+        'head',
+        'options',
+    ]
 
     def get_queryset(self):
         return (

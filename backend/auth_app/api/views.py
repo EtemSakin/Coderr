@@ -1,10 +1,10 @@
 from django.shortcuts import get_object_or_404
 from rest_framework import generics, status
 from rest_framework.authtoken.models import Token
-from rest_framework.exceptions import PermissionDenied
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 
+from auth_app.api.permissions import IsProfileOwnerOrReadOnly
 from auth_app.api.serializers import (
     LoginSerializer,
     ProfileSerializer,
@@ -49,7 +49,7 @@ class LoginView(generics.GenericAPIView):
 
 class ProfileView(generics.GenericAPIView):
     serializer_class = ProfileSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, IsProfileOwnerOrReadOnly]
 
     def get_profile(self, user_id):
         queryset = Profile.objects.select_related('user')
@@ -60,8 +60,6 @@ class ProfileView(generics.GenericAPIView):
         return Response(self.get_serializer(profile).data)
 
     def patch(self, request, user_id):
-        if request.user.id != user_id:
-            raise PermissionDenied('You can only edit your own profile.')
         profile = self.get_profile(user_id)
         serializer = self.get_serializer(
             profile,
