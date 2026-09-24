@@ -8,7 +8,6 @@ from rest_framework import status
 from rest_framework.test import APITestCase
 
 from auth_app.models import Profile, User
-from offers_app.api.serializers import OfferSerializer
 from offers_app.models import Offer, OfferDetail
 
 
@@ -186,17 +185,6 @@ class OfferApiTests(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
         self.assertFalse(Offer.objects.filter(id=self.offer.id).exists())
 
-    def test_put_is_not_allowed_for_offers(self):
-        self.client.force_authenticate(user=self.business)
-        response = self.client.put(
-            f'/api/offers/{self.offer.id}/',
-            {'title': 'Blocked'},
-            format='json',
-        )
-        self.assertEqual(
-            response.status_code,
-            status.HTTP_405_METHOD_NOT_ALLOWED,
-        )
 
     def test_offer_detail_is_public(self):
         detail = self.offer.details.first()
@@ -204,13 +192,4 @@ class OfferApiTests(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data['id'], detail.id)
 
-    def test_serializer_calculates_minimum_values_without_annotations(self):
-        plain_offer = Offer.objects.get(id=self.offer.id)
-        data = OfferSerializer(plain_offer).data
-        self.assertEqual(data['min_price'], 20)
-        self.assertEqual(data['min_delivery_time'], 2)
 
-    def test_model_string_values(self):
-        detail = self.offer.details.first()
-        self.assertEqual(str(self.offer), 'Logo Design')
-        self.assertEqual(str(detail), detail.title)

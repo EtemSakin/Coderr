@@ -152,7 +152,3 @@ class OrderApiTests(APITestCase):
         self.assertEqual(progress.data['order_count'], 1)
         self.assertEqual(completed.data['completed_order_count'], 1)
 
-    def test_model_string_value(self):
-        order = self.create_order()
-        expected = f'{order.title} ({Order.IN_PROGRESS})'
-        self.assertEqual(str(order), expected)

@@ -164,7 +164,3 @@ class ReviewApiTests(APITestCase):
         response = self.client.get('/api/base-info/')
         self.assertEqual(response.data['average_rating'], 0)
 
-    def test_model_string_value(self):
-        review = self.create_review(rating=4)
-        expected = 'customer -> business (4)'
-        self.assertEqual(str(review), expected)

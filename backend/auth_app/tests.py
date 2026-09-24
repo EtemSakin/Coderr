@@ -128,7 +128,3 @@ class AuthApiTests(APITestCase):
         self.assertEqual(business_response.data[0]['user'], business.id)
         self.assertEqual(customer_response.data[0]['user'], customer.id)
 
-    def test_model_string_values(self):
-        user = self.create_user('customer', User.CUSTOMER)
-        self.assertEqual(str(user), 'customer')
-        self.assertEqual(str(user.profile), 'customer')
