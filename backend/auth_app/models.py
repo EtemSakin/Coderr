@@ -3,6 +3,8 @@ from django.db import models
 
 
 class User(AbstractUser):
+    """Custom user with customer and business account types."""
+
     CUSTOMER = 'customer'
     BUSINESS = 'business'
 
@@ -21,6 +23,8 @@ class User(AbstractUser):
 
 
 class Profile(models.Model):
+    """Stores marketplace profile data linked to a user."""
+
     user = models.OneToOneField(
         User,
         on_delete=models.CASCADE,

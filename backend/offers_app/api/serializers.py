@@ -6,6 +6,8 @@ from offers_app.models import Offer, OfferDetail
 
 
 class OfferDetailSerializer(serializers.ModelSerializer):
+    """Serializes a single offer pricing tier."""
+
     class Meta:
         model = OfferDetail
         fields = [
@@ -26,6 +28,8 @@ class OfferDetailSerializer(serializers.ModelSerializer):
 
 
 class OfferSerializer(serializers.ModelSerializer):
+    """Serializes offers together with their pricing tiers."""
+
     user = serializers.PrimaryKeyRelatedField(
         source='creator',
         read_only=True,

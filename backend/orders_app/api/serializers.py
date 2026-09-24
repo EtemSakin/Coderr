@@ -5,6 +5,8 @@ from orders_app.models import Order
 
 
 class OrderSerializer(serializers.ModelSerializer):
+    """Serializes orders and creates snapshots from offer details."""
+
     offer_detail_id = serializers.PrimaryKeyRelatedField(
         source='offer_detail',
         queryset=OfferDetail.objects.select_related('offer__creator'),

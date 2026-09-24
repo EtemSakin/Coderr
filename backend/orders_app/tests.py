@@ -22,12 +22,15 @@ class OrderApiTests(APITestCase):
         Profile.objects.create(user=user)
         return user
 
-    def create_detail(self, business):
-        offer = Offer.objects.create(
+    def create_offer(self, business):
+        return Offer.objects.create(
             creator=business,
             title='Logo Design',
             description='Professional logo',
         )
+
+    def create_detail(self, business):
+        offer = self.create_offer(business)
         return OfferDetail.objects.create(
             offer=offer,
             title='Basic Logo',
@@ -92,10 +95,9 @@ class OrderApiTests(APITestCase):
         response = self.client.get('/api/orders/')
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
 
-    def test_order_list_only_contains_related_orders(self):
-        order = self.create_order()
+    def create_unrelated_order(self):
         other_customer = self.create_user('othercustomer', User.CUSTOMER)
-        Order.objects.create(
+        return Order.objects.create(
             customer_user=other_customer,
             business_user=self.other_business,
             offer_detail=None,
@@ -105,6 +107,10 @@ class OrderApiTests(APITestCase):
             price='10.00',
             features=[],
         )
+
+    def test_order_list_only_contains_related_orders(self):
+        order = self.create_order()
+        self.create_unrelated_order()
         self.client.force_authenticate(user=self.customer)
         response = self.client.get('/api/orders/')
         detail = self.client.get(f'/api/orders/{order.id}/')

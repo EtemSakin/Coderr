@@ -4,6 +4,8 @@ from auth_app.models import User
 
 
 class ReviewPermission(BasePermission):
+    """Enforces review creation and ownership permissions."""
+
     def has_permission(self, request, view):
         if request.method in SAFE_METHODS:
             return True

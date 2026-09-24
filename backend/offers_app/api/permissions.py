@@ -4,6 +4,8 @@ from auth_app.models import User
 
 
 class IsBusinessOrReadOnly(BasePermission):
+    """Allows writes only for authenticated business users."""
+
     def has_permission(self, request, view):
         if request.method in SAFE_METHODS:
             return True
@@ -14,6 +16,8 @@ class IsBusinessOrReadOnly(BasePermission):
 
 
 class IsOfferOwnerOrReadOnly(BasePermission):
+    """Allows offer changes only for the offer owner."""
+
     def has_object_permission(self, request, view, obj):
         if request.method in SAFE_METHODS:
             return True

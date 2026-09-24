@@ -8,6 +8,8 @@ User = get_user_model()
 
 
 class RegistrationSerializer(serializers.ModelSerializer):
+    """Validates and creates new marketplace users."""
+
     password = serializers.CharField(write_only=True)
     repeated_password = serializers.CharField(write_only=True)
 
@@ -36,6 +38,8 @@ class RegistrationSerializer(serializers.ModelSerializer):
 
 
 class LoginSerializer(serializers.Serializer):
+    """Validates username and password credentials."""
+
     username = serializers.CharField()
     password = serializers.CharField(write_only=True)
 
@@ -45,12 +49,16 @@ class LoginSerializer(serializers.Serializer):
             password=attrs['password'],
         )
         if not user:
-            raise serializers.ValidationError({'detail': 'Invalid credentials.'})
+            raise serializers.ValidationError(
+                {'detail': 'Invalid credentials.'}
+            )
         attrs['user'] = user
         return attrs
 
 
 class ProfileSerializer(serializers.ModelSerializer):
+    """Serializes profile data together with selected user fields."""
+
     user = serializers.IntegerField(source='user.id', read_only=True)
     username = serializers.CharField(source='user.username', read_only=True)
     first_name = serializers.CharField(

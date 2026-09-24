@@ -3,6 +3,8 @@ from django.db import models
 
 
 class Offer(models.Model):
+    """Represents a service offer created by a business user."""
+
     creator = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
@@ -19,6 +21,8 @@ class Offer(models.Model):
 
 
 class OfferDetail(models.Model):
+    """Stores one pricing tier belonging to an offer."""
+
     BASIC = 'basic'
     STANDARD = 'standard'
     PREMIUM = 'premium'

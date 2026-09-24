@@ -17,6 +17,8 @@ class OrderViewSet(
     mixins.DestroyModelMixin,
     viewsets.GenericViewSet,
 ):
+    """Provides order listing, creation, retrieval, updates and deletion."""
+
     serializer_class = OrderSerializer
     permission_classes = [IsAuthenticated, OrderPermission]
     http_method_names = ['get', 'post', 'patch', 'delete', 'head', 'options']
@@ -35,6 +37,8 @@ class OrderViewSet(
 
 
 class OrderCountView(APIView):
+    """Returns the number of in-progress orders for a business."""
+
     permission_classes = [AllowAny]
 
     def get(self, request, business_user_id):
@@ -46,6 +50,8 @@ class OrderCountView(APIView):
 
 
 class CompletedOrderCountView(APIView):
+    """Returns the number of completed orders for a business."""
+
     permission_classes = [AllowAny]
 
     def get(self, request, business_user_id):

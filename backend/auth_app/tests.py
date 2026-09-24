@@ -85,23 +85,30 @@ class AuthApiTests(APITestCase):
         self.assertEqual(response.data['email'], user.email)
         self.assertIn('created_at', response.data)
 
-    def test_user_can_update_own_profile(self):
-        user = self.create_user('customer', User.CUSTOMER)
-        self.client.force_authenticate(user=user)
-        data = {
+    def profile_update_data(self):
+        return {
             'first_name': 'Etem',
             'email': 'etem@example.com',
             'location': 'Cologne',
         }
+
+    def assert_profile_values(self, user):
+        self.assertEqual(user.first_name, 'Etem')
+        self.assertEqual(user.email, 'etem@example.com')
+        self.assertEqual(user.profile.location, 'Cologne')
+
+    def test_user_can_update_own_profile(self):
+        user = self.create_user('customer', User.CUSTOMER)
+        self.client.force_authenticate(user=user)
         response = self.client.patch(
-            f'/api/profile/{user.id}/', data, format='json'
+            f'/api/profile/{user.id}/',
+            self.profile_update_data(),
+            format='json',
         )
         user.refresh_from_db()
         user.profile.refresh_from_db()
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(user.first_name, 'Etem')
-        self.assertEqual(user.email, 'etem@example.com')
-        self.assertEqual(user.profile.location, 'Cologne')
+        self.assert_profile_values(user)
 
     def test_user_can_upload_profile_image(self):
         user = self.create_user('customer', User.CUSTOMER)

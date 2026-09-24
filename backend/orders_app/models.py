@@ -5,6 +5,8 @@ from offers_app.models import OfferDetail
 
 
 class Order(models.Model):
+    """Stores an immutable snapshot of a purchased offer tier."""
+
     IN_PROGRESS = 'in_progress'
     COMPLETED = 'completed'
     CANCELLED = 'cancelled'

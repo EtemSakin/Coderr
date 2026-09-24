@@ -4,6 +4,8 @@ from django.db import models
 
 
 class Review(models.Model):
+    """Stores a customer's rating and feedback for a business."""
+
     reviewer = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,

@@ -14,6 +14,8 @@ from auth_app.models import Profile, User
 
 
 class RegistrationView(generics.GenericAPIView):
+    """Registers a user and returns an authentication token."""
+
     serializer_class = RegistrationSerializer
     permission_classes = [AllowAny]
 
@@ -31,6 +33,8 @@ class RegistrationView(generics.GenericAPIView):
 
 
 class LoginView(generics.GenericAPIView):
+    """Authenticates a user and returns an authentication token."""
+
     serializer_class = LoginSerializer
     permission_classes = [AllowAny]
 
@@ -48,6 +52,8 @@ class LoginView(generics.GenericAPIView):
 
 
 class ProfileView(generics.GenericAPIView):
+    """Reads profiles and updates the authenticated user's profile."""
+
     serializer_class = ProfileSerializer
     permission_classes = [IsAuthenticated, IsProfileOwnerOrReadOnly]
 
@@ -72,6 +78,8 @@ class ProfileView(generics.GenericAPIView):
 
 
 class BusinessProfileListView(generics.ListAPIView):
+    """Lists profiles belonging to business users."""
+
     serializer_class = ProfileSerializer
     permission_classes = [AllowAny]
     queryset = Profile.objects.select_related('user').filter(
@@ -80,6 +88,8 @@ class BusinessProfileListView(generics.ListAPIView):
 
 
 class CustomerProfileListView(generics.ListAPIView):
+    """Lists profiles belonging to customer users."""
+
     serializer_class = ProfileSerializer
     permission_classes = [AllowAny]
     queryset = Profile.objects.select_related('user').filter(

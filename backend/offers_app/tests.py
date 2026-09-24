@@ -37,33 +37,36 @@ class OfferApiTests(APITestCase):
         Profile.objects.create(user=user)
         return user
 
+    def package_data(
+        self, prefix, offer_type, revisions, delivery, price, feature
+    ):
+        return {
+            'title': f'{prefix} {offer_type.title()}',
+            'revisions': revisions,
+            'delivery_time_in_days': delivery,
+            'price': price,
+            'features': [feature],
+            'offer_type': offer_type,
+        }
+
     def detail_data(self, prefix='Package'):
-        return [
-            {
-                'title': f'{prefix} Basic',
-                'revisions': 1,
-                'delivery_time_in_days': 2,
-                'price': '20.00',
-                'features': ['One concept'],
-                'offer_type': OfferDetail.BASIC,
-            },
-            {
-                'title': f'{prefix} Standard',
-                'revisions': 2,
-                'delivery_time_in_days': 4,
-                'price': '40.00',
-                'features': ['Two concepts'],
-                'offer_type': OfferDetail.STANDARD,
-            },
-            {
-                'title': f'{prefix} Premium',
-                'revisions': -1,
-                'delivery_time_in_days': 6,
-                'price': '60.00',
-                'features': ['Three concepts'],
-                'offer_type': OfferDetail.PREMIUM,
-            },
+        specs = [
+            (OfferDetail.BASIC, 1, 2, '20.00', 'One concept'),
+            (OfferDetail.STANDARD, 2, 4, '40.00', 'Two concepts'),
+            (OfferDetail.PREMIUM, -1, 6, '60.00', 'Three concepts'),
         ]
+        return [self.package_data(prefix, *spec) for spec in specs]
+
+    def create_offer_detail(self, offer, index, offer_type, price, delivery):
+        OfferDetail.objects.create(
+            offer=offer,
+            title=f'{offer.title} {offer_type}',
+            revisions=index + 1,
+            delivery_time_in_days=delivery + index,
+            price=price + (index * 10),
+            features=['Feature'],
+            offer_type=offer_type,
+        )
 
     def create_offer(self, creator, title, price, delivery):
         offer = Offer.objects.create(
@@ -71,17 +74,14 @@ class OfferApiTests(APITestCase):
             title=title,
             description=f'{title} description',
         )
-        for index, offer_type in enumerate(
-            [OfferDetail.BASIC, OfferDetail.STANDARD, OfferDetail.PREMIUM]
-        ):
-            OfferDetail.objects.create(
-                offer=offer,
-                title=f'{title} {offer_type}',
-                revisions=index + 1,
-                delivery_time_in_days=delivery + index,
-                price=price + (index * 10),
-                features=['Feature'],
-                offer_type=offer_type,
+        offer_types = (
+            OfferDetail.BASIC,
+            OfferDetail.STANDARD,
+            OfferDetail.PREMIUM,
+        )
+        for index, offer_type in enumerate(offer_types):
+            self.create_offer_detail(
+                offer, index, offer_type, price, delivery
             )
         return offer
 
@@ -152,7 +152,10 @@ class OfferApiTests(APITestCase):
 
     def test_owner_can_update_offer_and_details(self):
         self.client.force_authenticate(user=self.business)
-        data = {'title': 'Updated Logo', 'details': self.detail_data('Updated')}
+        data = {
+            'title': 'Updated Logo',
+            'details': self.detail_data('Updated'),
+        }
         response = self.client.patch(
             f'/api/offers/{self.offer.id}/', data, format='json'
         )

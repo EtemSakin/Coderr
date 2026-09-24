@@ -21,6 +21,8 @@ from offers_app.models import Offer, OfferDetail
 
 
 class OfferFilter(FilterSet):
+    """Defines supported filtering options for offer lists."""
+
     creator_id = NumberFilter(field_name='creator_id')
     min_price = NumberFilter(method='filter_min_price')
     max_delivery_time = NumberFilter(method='filter_max_delivery_time')
@@ -37,6 +39,8 @@ class OfferFilter(FilterSet):
 
 
 class OfferViewSet(viewsets.ModelViewSet):
+    """Provides CRUD operations and filtering for offers."""
+
     queryset = Offer.objects.all()
     serializer_class = OfferSerializer
     permission_classes = [IsBusinessOrReadOnly, IsOfferOwnerOrReadOnly]
@@ -70,6 +74,8 @@ class OfferViewSet(viewsets.ModelViewSet):
 
 
 class OfferDetailView(generics.RetrieveAPIView):
+    """Returns a single offer detail by id."""
+
     queryset = OfferDetail.objects.select_related('offer')
     serializer_class = OfferDetailSerializer
     permission_classes = [AllowAny]

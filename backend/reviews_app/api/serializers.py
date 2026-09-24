@@ -8,6 +8,8 @@ User = get_user_model()
 
 
 class ReviewSerializer(serializers.ModelSerializer):
+    """Serializes reviews and validates review-specific rules."""
+
     reviewer = serializers.PrimaryKeyRelatedField(read_only=True)
     business_user = serializers.PrimaryKeyRelatedField(
         queryset=User.objects.filter(type=User.BUSINESS)

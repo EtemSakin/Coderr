@@ -12,6 +12,8 @@ from reviews_app.models import Review
 
 
 class ReviewViewSet(viewsets.ModelViewSet):
+    """Provides CRUD operations, filtering and ordering for reviews."""
+
     queryset = Review.objects.select_related('reviewer', 'business_user')
     serializer_class = ReviewSerializer
     permission_classes = [ReviewPermission]
@@ -36,6 +38,8 @@ class ReviewViewSet(viewsets.ModelViewSet):
 
 
 class BaseInfoView(APIView):
+    """Returns aggregated marketplace statistics."""
+
     permission_classes = [AllowAny]
 
     def get(self, request):

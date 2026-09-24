@@ -4,6 +4,8 @@ from auth_app.models import User
 
 
 class OrderPermission(BasePermission):
+    """Enforces role and ownership rules for order operations."""
+
     def has_permission(self, request, view):
         user = request.user
         if request.method == 'POST':

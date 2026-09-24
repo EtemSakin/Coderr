@@ -127,6 +127,10 @@ class ReviewApiTests(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
         self.assertFalse(Review.objects.filter(id=review.id).exists())
 
+    def review_ids(self, query):
+        response = self.client.get(query)
+        return [item['id'] for item in response.data]
+
     def test_review_filters_and_ordering(self):
         first = self.create_review(rating=3)
         second = self.create_review(
@@ -134,16 +138,16 @@ class ReviewApiTests(APITestCase):
             business=self.other_business,
             rating=5,
         )
-        business = self.client.get(
+        business_ids = self.review_ids(
             f'/api/reviews/?business_user_id={self.business.id}'
         )
-        reviewer = self.client.get(
+        reviewer_ids = self.review_ids(
             f'/api/reviews/?reviewer_id={self.other_customer.id}'
         )
-        ordered = self.client.get('/api/reviews/?ordering=-rating')
-        self.assertEqual([item['id'] for item in business.data], [first.id])
-        self.assertEqual([item['id'] for item in reviewer.data], [second.id])
-        self.assertEqual(ordered.data[0]['id'], second.id)
+        ordered_ids = self.review_ids('/api/reviews/?ordering=-rating')
+        self.assertEqual(business_ids, [first.id])
+        self.assertEqual(reviewer_ids, [second.id])
+        self.assertEqual(ordered_ids[0], second.id)
 
     def test_base_info_returns_platform_statistics(self):
         Offer.objects.create(creator=self.business, title='Offer')
