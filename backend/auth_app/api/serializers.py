@@ -59,7 +59,9 @@ class ProfileSerializer(serializers.ModelSerializer):
     last_name = serializers.CharField(
         source='user.last_name', required=False, allow_blank=True
     )
+    email = serializers.EmailField(source='user.email', required=False)
     type = serializers.CharField(source='user.type', read_only=True)
+    created_at = serializers.DateTimeField(read_only=True)
 
     class Meta:
         model = Profile
@@ -68,12 +70,14 @@ class ProfileSerializer(serializers.ModelSerializer):
             'username',
             'first_name',
             'last_name',
+            'email',
             'file',
             'location',
             'tel',
             'description',
             'working_hours',
             'type',
+            'created_at',
         ]
 
     def update(self, instance, validated_data):
