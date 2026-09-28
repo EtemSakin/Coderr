@@ -5,6 +5,8 @@ from orders_app.models import Order
 
 @admin.register(Order)
 class OrderAdmin(admin.ModelAdmin):
+    """Configure order management in Django admin."""
+
     list_display = (
         'id',
         'title',

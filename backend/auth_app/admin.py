@@ -6,6 +6,8 @@ from auth_app.models import Profile, User
 
 @admin.register(User)
 class CustomUserAdmin(UserAdmin):
+    """Configure the custom user model in Django admin."""
+
     fieldsets = UserAdmin.fieldsets + (
         ('Coderr', {'fields': ('type',)}),
     )
@@ -19,6 +21,8 @@ class CustomUserAdmin(UserAdmin):
 
 @admin.register(Profile)
 class ProfileAdmin(admin.ModelAdmin):
+    """Configure marketplace profile management in Django admin."""
+
     list_display = ('user', 'location', 'tel', 'working_hours', 'created_at')
     list_filter = ('user__type',)
     search_fields = ('user__username', 'user__email', 'location', 'tel')

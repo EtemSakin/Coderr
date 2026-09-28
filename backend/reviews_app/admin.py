@@ -5,6 +5,8 @@ from reviews_app.models import Review
 
 @admin.register(Review)
 class ReviewAdmin(admin.ModelAdmin):
+    """Configure review management in Django admin."""
+
     list_display = (
         'id',
         'reviewer',

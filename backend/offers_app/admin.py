@@ -5,6 +5,8 @@ from offers_app.models import Offer, OfferDetail
 
 @admin.register(Offer)
 class OfferAdmin(admin.ModelAdmin):
+    """Configure offer management in Django admin."""
+
     list_display = ('id', 'title', 'creator', 'created_at', 'updated_at')
     list_filter = ('created_at', 'updated_at')
     search_fields = ('title', 'description', 'creator__username')
@@ -12,6 +14,8 @@ class OfferAdmin(admin.ModelAdmin):
 
 @admin.register(OfferDetail)
 class OfferDetailAdmin(admin.ModelAdmin):
+    """Configure offer-detail management in Django admin."""
+
     list_display = (
         'id',
         'title',
