@@ -1,12 +1,15 @@
+"""Permissions for order roles and object ownership."""
+
 from rest_framework.permissions import BasePermission
 
 from auth_app.models import User
 
 
 class OrderPermission(BasePermission):
-    """Enforces role and ownership rules for order operations."""
+    """Enforce role and ownership rules for order operations."""
 
     def has_permission(self, request, view):
+        """Restrict order actions to their corresponding account roles."""
         user = request.user
         if request.method == 'POST':
             return user.is_authenticated and user.type == User.CUSTOMER
@@ -17,6 +20,7 @@ class OrderPermission(BasePermission):
         return user.is_authenticated
 
     def has_object_permission(self, request, view, obj):
+        """Restrict object access to order participants or staff."""
         if request.method == 'PATCH':
             return obj.business_user_id == request.user.id
         if request.method == 'DELETE':

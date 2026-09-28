@@ -1,3 +1,5 @@
+"""Review API views and public marketplace statistics."""
+
 from django.db.models import Avg
 from rest_framework import filters, viewsets
 from rest_framework.permissions import AllowAny, IsAuthenticated
@@ -15,7 +17,7 @@ from reviews_app.models import Review
 
 
 class ReviewViewSet(viewsets.ModelViewSet):
-    """Provides CRUD operations, filtering and ordering for reviews."""
+    """Provide CRUD operations, filtering and ordering for reviews."""
 
     queryset = Review.objects.select_related('reviewer', 'business_user')
     serializer_class = ReviewSerializer
@@ -27,6 +29,7 @@ class ReviewViewSet(viewsets.ModelViewSet):
     http_method_names = ['get', 'post', 'patch', 'delete', 'head', 'options']
 
     def get_queryset(self):
+        """Filter reviews by business or reviewer query parameters."""
         queryset = super().get_queryset()
         business_user_id = self.request.query_params.get('business_user_id')
         reviewer_id = self.request.query_params.get('reviewer_id')
@@ -37,30 +40,35 @@ class ReviewViewSet(viewsets.ModelViewSet):
         return queryset
 
     def get_serializer_class(self):
+        """Use the restricted serializer for partial updates."""
         if self.action == 'partial_update':
             return ReviewUpdateSerializer
         return ReviewSerializer
 
     def perform_create(self, serializer):
+        """Assign the authenticated customer as review author."""
         serializer.save(reviewer=self.request.user)
 
 
 class BaseInfoView(APIView):
-    """Returns aggregated marketplace statistics."""
+    """Return aggregated marketplace statistics."""
 
     permission_classes = [AllowAny]
     authentication_classes = []
 
     def get(self, request):
-        average_rating = Review.objects.aggregate(
-            value=Avg('rating')
-        )['value'] or 0
-        data = {
+        """Return the current public platform statistics."""
+        return Response(self._statistics_data())
+
+    def _statistics_data(self):
+        """Build offer, review, business, and rating statistics."""
+        average = Review.objects.aggregate(value=Avg('rating'))['value'] or 0
+        business_count = Profile.objects.filter(
+            user__type=User.BUSINESS
+        ).count()
+        return {
             'offer_count': Offer.objects.count(),
             'review_count': Review.objects.count(),
-            'business_profile_count': Profile.objects.filter(
-                user__type=User.BUSINESS
-            ).count(),
-            'average_rating': round(average_rating, 1),
+            'business_profile_count': business_count,
+            'average_rating': round(average, 1),
         }
-        return Response(data)

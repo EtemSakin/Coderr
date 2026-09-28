@@ -74,6 +74,10 @@ class OfferApiTests(APITestCase):
             title=title,
             description=f'{title} description',
         )
+        self.create_offer_details(offer, price, delivery)
+        return offer
+
+    def create_offer_details(self, offer, price, delivery):
         offer_types = (
             OfferDetail.BASIC,
             OfferDetail.STANDARD,
@@ -83,7 +87,6 @@ class OfferApiTests(APITestCase):
             self.create_offer_detail(
                 offer, index, offer_type, price, delivery
             )
-        return offer
 
     def test_business_can_create_offer(self):
         self.client.force_authenticate(user=self.business)
@@ -168,6 +171,14 @@ class OfferApiTests(APITestCase):
         self.assertNotIn('user_details', response.data)
         self.assertEqual(set(response.data['details'][0]), {'id', 'url'})
 
+    def assert_offer_update(self, response):
+        self.offer.refresh_from_db()
+        detail = self.offer.details.get(offer_type=OfferDetail.BASIC)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(self.offer.title, 'Updated Logo')
+        self.assertEqual(detail.title, 'Updated Basic')
+        self.assertEqual(len(response.data['details']), 3)
+
     def test_owner_can_update_single_offer_detail(self):
         self.client.force_authenticate(user=self.business)
         basic = self.detail_data('Updated')[0]
@@ -176,12 +187,7 @@ class OfferApiTests(APITestCase):
             {'title': 'Updated Logo', 'details': [basic]},
             format='json',
         )
-        self.offer.refresh_from_db()
-        detail = self.offer.details.get(offer_type=OfferDetail.BASIC)
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(self.offer.title, 'Updated Logo')
-        self.assertEqual(detail.title, 'Updated Basic')
-        self.assertEqual(len(response.data['details']), 3)
+        self.assert_offer_update(response)
 
     def test_owner_can_upload_offer_image(self):
         self.client.force_authenticate(user=self.business)

@@ -1,3 +1,5 @@
+"""Order API views and order counters."""
+
 from django.db.models import Q
 from django.shortcuts import get_object_or_404
 from rest_framework import viewsets
@@ -16,7 +18,7 @@ from orders_app.models import Order
 
 
 class OrderViewSet(viewsets.ModelViewSet):
-    """Provides order listing, creation, retrieval, updates and deletion."""
+    """Provide order listing, creation, retrieval, updates and deletion."""
 
     queryset = Order.objects.all()
     serializer_class = OrderSerializer
@@ -25,6 +27,7 @@ class OrderViewSet(viewsets.ModelViewSet):
     http_method_names = ['get', 'post', 'patch', 'delete', 'head', 'options']
 
     def get_queryset(self):
+        """Return orders visible to the current action and user."""
         if self.action in ('partial_update', 'destroy'):
             queryset = Order.objects.all()
         else:
@@ -37,6 +40,7 @@ class OrderViewSet(viewsets.ModelViewSet):
         ).order_by('-created_at')
 
     def get_serializer_class(self):
+        """Select the serializer matching the current order action."""
         if self.action == 'create':
             return OrderCreateSerializer
         if self.action == 'partial_update':
@@ -45,11 +49,12 @@ class OrderViewSet(viewsets.ModelViewSet):
 
 
 class OrderCountView(APIView):
-    """Returns the number of in-progress orders for a business."""
+    """Return the number of in-progress orders for a business."""
 
     permission_classes = [IsAuthenticated]
 
     def get(self, request, business_user_id):
+        """Count in-progress orders after validating the business id."""
         business = get_object_or_404(
             User,
             pk=business_user_id,
@@ -63,11 +68,12 @@ class OrderCountView(APIView):
 
 
 class CompletedOrderCountView(APIView):
-    """Returns the number of completed orders for a business."""
+    """Return the number of completed orders for a business."""
 
     permission_classes = [IsAuthenticated]
 
     def get(self, request, business_user_id):
+        """Count completed orders after validating the business id."""
         business = get_object_or_404(
             User,
             pk=business_user_id,

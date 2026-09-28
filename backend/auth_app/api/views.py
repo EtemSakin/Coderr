@@ -1,3 +1,5 @@
+"""Authentication and profile API views."""
+
 from django.shortcuts import get_object_or_404
 from rest_framework import generics, status
 from rest_framework.authtoken.models import Token
@@ -16,6 +18,7 @@ from auth_app.models import Profile, User
 
 
 def auth_response_data(user, token):
+    """Build the authentication response shared by register and login."""
     return {
         'token': token.key,
         'user_id': user.id,
@@ -25,13 +28,14 @@ def auth_response_data(user, token):
 
 
 class RegistrationView(generics.GenericAPIView):
-    """Registers a user and returns an authentication token."""
+    """Register a user and return an authentication token."""
 
     serializer_class = RegistrationSerializer
     permission_classes = [AllowAny]
     authentication_classes = []
 
     def post(self, request):
+        """Create a user account from the submitted registration data."""
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         user = serializer.save()
@@ -43,13 +47,14 @@ class RegistrationView(generics.GenericAPIView):
 
 
 class LoginView(generics.GenericAPIView):
-    """Authenticates a user and returns an authentication token."""
+    """Authenticate a user and return an authentication token."""
 
     serializer_class = LoginSerializer
     permission_classes = [AllowAny]
     authentication_classes = []
 
     def post(self, request):
+        """Authenticate credentials and return the user's token."""
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         user = serializer.validated_data['user']
@@ -58,20 +63,23 @@ class LoginView(generics.GenericAPIView):
 
 
 class ProfileView(generics.GenericAPIView):
-    """Reads profiles and updates the authenticated user's profile."""
+    """Read profiles and update the authenticated user's profile."""
 
     serializer_class = ProfileSerializer
     permission_classes = [IsAuthenticated, IsProfileOwnerOrReadOnly]
 
     def get_profile(self, user_id):
+        """Return the profile belonging to the supplied user id."""
         queryset = Profile.objects.select_related('user')
         return get_object_or_404(queryset, user_id=user_id)
 
     def get(self, request, user_id):
+        """Return one authenticated profile response."""
         profile = self.get_profile(user_id)
         return Response(self.get_serializer(profile).data)
 
     def patch(self, request, user_id):
+        """Partially update the authenticated user's own profile."""
         profile = self.get_profile(user_id)
         serializer = self.get_serializer(
             profile,
@@ -84,7 +92,7 @@ class ProfileView(generics.GenericAPIView):
 
 
 class BusinessProfileListView(generics.ListAPIView):
-    """Lists profiles belonging to business users."""
+    """List profiles belonging to business users."""
 
     serializer_class = BusinessProfileSerializer
     permission_classes = [IsAuthenticated]
@@ -94,7 +102,7 @@ class BusinessProfileListView(generics.ListAPIView):
 
 
 class CustomerProfileListView(generics.ListAPIView):
-    """Lists profiles belonging to customer users."""
+    """List profiles belonging to customer users."""
 
     serializer_class = CustomerProfileSerializer
     permission_classes = [IsAuthenticated]

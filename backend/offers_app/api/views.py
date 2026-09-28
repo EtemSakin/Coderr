@@ -1,3 +1,5 @@
+"""Offer API views, filtering, ordering, and permissions."""
+
 from django.db.models import Min
 from django_filters.rest_framework import (
     DjangoFilterBackend,
@@ -23,25 +25,29 @@ from offers_app.models import Offer, OfferDetail
 
 
 class OfferFilter(FilterSet):
-    """Defines supported filtering options for offer lists."""
+    """Define supported filtering options for offer lists."""
 
     creator_id = NumberFilter(field_name='creator_id')
     min_price = NumberFilter(method='filter_min_price')
     max_delivery_time = NumberFilter(method='filter_max_delivery_time')
 
     class Meta:
+        """Bind filters to the offer model."""
+
         model = Offer
         fields = []
 
     def filter_min_price(self, queryset, name, value):
+        """Keep offers whose cheapest tier meets the minimum price."""
         return queryset.filter(min_price__gte=value)
 
     def filter_max_delivery_time(self, queryset, name, value):
+        """Keep offers deliverable within the requested duration."""
         return queryset.filter(min_delivery_time__lte=value)
 
 
 class OfferViewSet(viewsets.ModelViewSet):
-    """Provides CRUD operations and filtering for offers."""
+    """Provide CRUD operations and filtering for offers."""
 
     queryset = Offer.objects.all()
     serializer_class = OfferWriteSerializer
@@ -66,6 +72,7 @@ class OfferViewSet(viewsets.ModelViewSet):
     ]
 
     def get_queryset(self):
+        """Return offers annotated with cheapest and fastest tiers."""
         return (
             Offer.objects.select_related('creator')
             .prefetch_related('details')
@@ -76,11 +83,13 @@ class OfferViewSet(viewsets.ModelViewSet):
         )
 
     def get_permissions(self):
+        """Allow anonymous listing while protecting all other actions."""
         if self.action == 'list':
             return [AllowAny()]
         return super().get_permissions()
 
     def get_serializer_class(self):
+        """Select the serializer matching the current action."""
         if self.action == 'list':
             return OfferListSerializer
         if self.action == 'retrieve':
@@ -88,11 +97,12 @@ class OfferViewSet(viewsets.ModelViewSet):
         return OfferWriteSerializer
 
     def perform_create(self, serializer):
+        """Assign the authenticated business user as offer creator."""
         serializer.save(creator=self.request.user)
 
 
 class OfferDetailView(generics.RetrieveAPIView):
-    """Returns a single offer detail by id."""
+    """Return a single offer detail by id."""
 
     queryset = OfferDetail.objects.select_related('offer')
     serializer_class = OfferDetailSerializer

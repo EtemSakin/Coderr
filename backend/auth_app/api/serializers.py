@@ -1,3 +1,5 @@
+"""Serializers for authentication and marketplace profiles."""
+
 from django.contrib.auth import authenticate, get_user_model
 from rest_framework import serializers
 
@@ -8,12 +10,14 @@ User = get_user_model()
 
 
 class RegistrationSerializer(serializers.ModelSerializer):
-    """Validates and creates new marketplace users."""
+    """Validate and create new marketplace users."""
 
     password = serializers.CharField(write_only=True)
     repeated_password = serializers.CharField(write_only=True)
 
     class Meta:
+        """Define fields accepted during registration."""
+
         model = User
         fields = [
             'username',
@@ -24,6 +28,7 @@ class RegistrationSerializer(serializers.ModelSerializer):
         ]
 
     def validate_email(self, value):
+        """Reject email addresses that are already registered."""
         queryset = User.objects.filter(email__iexact=value)
         if queryset.exists():
             raise serializers.ValidationError(
@@ -32,6 +37,7 @@ class RegistrationSerializer(serializers.ModelSerializer):
         return value
 
     def validate(self, attrs):
+        """Ensure both supplied passwords match."""
         if attrs['password'] != attrs['repeated_password']:
             raise serializers.ValidationError(
                 {'password': 'Passwords do not match.'}
@@ -39,6 +45,7 @@ class RegistrationSerializer(serializers.ModelSerializer):
         return attrs
 
     def create(self, validated_data):
+        """Create the user together with an empty profile."""
         validated_data.pop('repeated_password')
         user = User.objects.create_user(**validated_data)
         Profile.objects.create(user=user)
@@ -46,12 +53,13 @@ class RegistrationSerializer(serializers.ModelSerializer):
 
 
 class LoginSerializer(serializers.Serializer):
-    """Validates username and password credentials."""
+    """Validate username and password credentials."""
 
     username = serializers.CharField()
     password = serializers.CharField(write_only=True)
 
     def validate(self, attrs):
+        """Authenticate the supplied credentials."""
         user = authenticate(
             username=attrs['username'],
             password=attrs['password'],
@@ -65,7 +73,7 @@ class LoginSerializer(serializers.Serializer):
 
 
 class ProfileSerializer(serializers.ModelSerializer):
-    """Serializes profile data together with selected user fields."""
+    """Serialize profile data together with selected user fields."""
 
     user = serializers.IntegerField(source='user.id', read_only=True)
     username = serializers.CharField(source='user.username', read_only=True)
@@ -80,6 +88,8 @@ class ProfileSerializer(serializers.ModelSerializer):
     created_at = serializers.DateTimeField(read_only=True)
 
     class Meta:
+        """Define the flattened profile representation."""
+
         model = Profile
         fields = [
             'user',
@@ -97,6 +107,7 @@ class ProfileSerializer(serializers.ModelSerializer):
         ]
 
     def validate_email(self, value):
+        """Reject an email address used by another account."""
         queryset = User.objects.filter(email__iexact=value)
         if self.instance is not None:
             queryset = queryset.exclude(pk=self.instance.user_id)
@@ -107,6 +118,7 @@ class ProfileSerializer(serializers.ModelSerializer):
         return value
 
     def update(self, instance, validated_data):
+        """Update user fields and profile fields in one request."""
         user_data = validated_data.pop('user', {})
         if user_data:
             for field, value in user_data.items():
@@ -116,9 +128,11 @@ class ProfileSerializer(serializers.ModelSerializer):
 
 
 class BusinessProfileSerializer(ProfileSerializer):
-    """Serializes the public business profile list representation."""
+    """Serialize the public business profile list representation."""
 
     class Meta(ProfileSerializer.Meta):
+        """Expose fields required by business profile listings."""
+
         fields = [
             'user',
             'username',
@@ -134,9 +148,11 @@ class BusinessProfileSerializer(ProfileSerializer):
 
 
 class CustomerProfileSerializer(ProfileSerializer):
-    """Serializes the compact customer profile list representation."""
+    """Serialize the compact customer profile list representation."""
 
     class Meta(ProfileSerializer.Meta):
+        """Expose fields required by customer profile listings."""
+
         fields = [
             'user',
             'username',

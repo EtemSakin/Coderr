@@ -1,12 +1,15 @@
+"""Compatibility models for the mentor sample-data script."""
+
 from offers_app.models import Offer as ProjectOffer
 from offers_app.models import OfferDetail
 
 
 class OfferManagerAdapter:
-    """Maps the mentor script's user field to creator."""
+    """Map the mentor script's user field to creator."""
 
     @staticmethod
     def get_or_create(defaults=None, **kwargs):
+        """Create or retrieve an offer using the mentor field names."""
         user = kwargs.pop('user', None)
         if user is not None:
             kwargs['creator'] = user
@@ -17,7 +20,7 @@ class OfferManagerAdapter:
 
 
 class Offer:
-    """Exposes the manager interface expected by the mentor script."""
+    """Expose the manager interface expected by the mentor script."""
 
     objects = OfferManagerAdapter()
 
