@@ -1,33 +1,34 @@
 from django.db.models import Q
-from rest_framework import mixins, viewsets
-from rest_framework.permissions import AllowAny, IsAuthenticated
+from django.shortcuts import get_object_or_404
+from rest_framework import viewsets
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from auth_app.models import User
 from orders_app.api.permissions import OrderPermission
-from orders_app.api.serializers import OrderSerializer
+from orders_app.api.serializers import (
+    OrderCreateSerializer,
+    OrderSerializer,
+    OrderStatusSerializer,
+)
 from orders_app.models import Order
 
 
-class OrderViewSet(
-    mixins.ListModelMixin,
-    mixins.CreateModelMixin,
-    mixins.RetrieveModelMixin,
-    mixins.UpdateModelMixin,
-    mixins.DestroyModelMixin,
-    viewsets.GenericViewSet,
-):
+class OrderViewSet(viewsets.ModelViewSet):
     """Provides order listing, creation, retrieval, updates and deletion."""
 
+    queryset = Order.objects.all()
     serializer_class = OrderSerializer
     permission_classes = [IsAuthenticated, OrderPermission]
+    pagination_class = None
     http_method_names = ['get', 'post', 'patch', 'delete', 'head', 'options']
 
     def get_queryset(self):
-        user = self.request.user
-        if self.action == 'destroy' and user.is_staff:
+        if self.action in ('partial_update', 'destroy'):
             queryset = Order.objects.all()
         else:
+            user = self.request.user
             queryset = Order.objects.filter(
                 Q(customer_user=user) | Q(business_user=user)
             )
@@ -35,15 +36,27 @@ class OrderViewSet(
             'customer_user', 'business_user', 'offer_detail'
         ).order_by('-created_at')
 
+    def get_serializer_class(self):
+        if self.action == 'create':
+            return OrderCreateSerializer
+        if self.action == 'partial_update':
+            return OrderStatusSerializer
+        return OrderSerializer
+
 
 class OrderCountView(APIView):
     """Returns the number of in-progress orders for a business."""
 
-    permission_classes = [AllowAny]
+    permission_classes = [IsAuthenticated]
 
     def get(self, request, business_user_id):
+        business = get_object_or_404(
+            User,
+            pk=business_user_id,
+            type=User.BUSINESS,
+        )
         count = Order.objects.filter(
-            business_user_id=business_user_id,
+            business_user=business,
             status=Order.IN_PROGRESS,
         ).count()
         return Response({'order_count': count})
@@ -52,11 +65,16 @@ class OrderCountView(APIView):
 class CompletedOrderCountView(APIView):
     """Returns the number of completed orders for a business."""
 
-    permission_classes = [AllowAny]
+    permission_classes = [IsAuthenticated]
 
     def get(self, request, business_user_id):
+        business = get_object_or_404(
+            User,
+            pk=business_user_id,
+            type=User.BUSINESS,
+        )
         count = Order.objects.filter(
-            business_user_id=business_user_id,
+            business_user=business,
             status=Order.COMPLETED,
         ).count()
         return Response({'completed_order_count': count})

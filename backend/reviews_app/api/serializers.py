@@ -31,7 +31,6 @@ class ReviewSerializer(serializers.ModelSerializer):
 
     def validate(self, attrs):
         if self.instance:
-            self._reject_business_change(attrs)
             return attrs
         if self._review_exists(attrs['business_user']):
             raise serializers.ValidationError(
@@ -39,15 +38,28 @@ class ReviewSerializer(serializers.ModelSerializer):
             )
         return attrs
 
-    def _reject_business_change(self, attrs):
-        if 'business_user' in attrs:
-            raise serializers.ValidationError(
-                {'business_user': 'This field cannot be changed.'}
-            )
-
     def _review_exists(self, business_user):
         reviewer = self.context['request'].user
         return Review.objects.filter(
             reviewer=reviewer,
             business_user=business_user,
         ).exists()
+
+
+class ReviewUpdateSerializer(serializers.ModelSerializer):
+    """Updates only rating and description on an existing review."""
+
+    class Meta:
+        model = Review
+        fields = ['rating', 'description']
+
+    def validate(self, attrs):
+        unknown = set(self.initial_data) - set(self.fields)
+        if unknown:
+            raise serializers.ValidationError(
+                {field: 'This field is not editable.' for field in unknown}
+            )
+        return attrs
+
+    def to_representation(self, instance):
+        return ReviewSerializer(instance, context=self.context).data

@@ -6,7 +6,7 @@ from django_filters.rest_framework import (
 )
 from rest_framework import generics, viewsets
 from rest_framework.filters import OrderingFilter, SearchFilter
-from rest_framework.permissions import AllowAny
+from rest_framework.permissions import AllowAny, IsAuthenticated
 
 from offers_app.api.pagination import OfferPagination
 from offers_app.api.permissions import (
@@ -15,7 +15,9 @@ from offers_app.api.permissions import (
 )
 from offers_app.api.serializers import (
     OfferDetailSerializer,
-    OfferSerializer,
+    OfferListSerializer,
+    OfferReadSerializer,
+    OfferWriteSerializer,
 )
 from offers_app.models import Offer, OfferDetail
 
@@ -42,8 +44,12 @@ class OfferViewSet(viewsets.ModelViewSet):
     """Provides CRUD operations and filtering for offers."""
 
     queryset = Offer.objects.all()
-    serializer_class = OfferSerializer
-    permission_classes = [IsBusinessOrReadOnly, IsOfferOwnerOrReadOnly]
+    serializer_class = OfferWriteSerializer
+    permission_classes = [
+        IsAuthenticated,
+        IsBusinessOrReadOnly,
+        IsOfferOwnerOrReadOnly,
+    ]
     pagination_class = OfferPagination
     filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
     filterset_class = OfferFilter
@@ -69,6 +75,18 @@ class OfferViewSet(viewsets.ModelViewSet):
             )
         )
 
+    def get_permissions(self):
+        if self.action == 'list':
+            return [AllowAny()]
+        return super().get_permissions()
+
+    def get_serializer_class(self):
+        if self.action == 'list':
+            return OfferListSerializer
+        if self.action == 'retrieve':
+            return OfferReadSerializer
+        return OfferWriteSerializer
+
     def perform_create(self, serializer):
         serializer.save(creator=self.request.user)
 
@@ -78,4 +96,4 @@ class OfferDetailView(generics.RetrieveAPIView):
 
     queryset = OfferDetail.objects.select_related('offer')
     serializer_class = OfferDetailSerializer
-    permission_classes = [AllowAny]
+    permission_classes = [IsAuthenticated]

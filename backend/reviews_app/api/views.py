@@ -1,13 +1,16 @@
 from django.db.models import Avg
 from rest_framework import filters, viewsets
-from rest_framework.permissions import AllowAny
+from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from auth_app.models import Profile, User
 from offers_app.models import Offer
 from reviews_app.api.permissions import ReviewPermission
-from reviews_app.api.serializers import ReviewSerializer
+from reviews_app.api.serializers import (
+    ReviewSerializer,
+    ReviewUpdateSerializer,
+)
 from reviews_app.models import Review
 
 
@@ -16,7 +19,7 @@ class ReviewViewSet(viewsets.ModelViewSet):
 
     queryset = Review.objects.select_related('reviewer', 'business_user')
     serializer_class = ReviewSerializer
-    permission_classes = [ReviewPermission]
+    permission_classes = [IsAuthenticated, ReviewPermission]
     pagination_class = None
     filter_backends = [filters.OrderingFilter]
     ordering_fields = ['updated_at', 'rating']
@@ -33,6 +36,11 @@ class ReviewViewSet(viewsets.ModelViewSet):
             queryset = queryset.filter(reviewer_id=reviewer_id)
         return queryset
 
+    def get_serializer_class(self):
+        if self.action == 'partial_update':
+            return ReviewUpdateSerializer
+        return ReviewSerializer
+
     def perform_create(self, serializer):
         serializer.save(reviewer=self.request.user)
 
@@ -41,6 +49,7 @@ class BaseInfoView(APIView):
     """Returns aggregated marketplace statistics."""
 
     permission_classes = [AllowAny]
+    authentication_classes = []
 
     def get(self, request):
         average_rating = Review.objects.aggregate(

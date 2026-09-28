@@ -2,6 +2,7 @@ from django.db import transaction
 from django.db.models import Min
 from rest_framework import serializers
 
+from auth_app.models import User
 from offers_app.models import Offer, OfferDetail
 
 
@@ -27,14 +28,32 @@ class OfferDetailSerializer(serializers.ModelSerializer):
         return value
 
 
-class OfferSerializer(serializers.ModelSerializer):
-    """Serializes offers together with their pricing tiers."""
+class OfferDetailLinkSerializer(serializers.ModelSerializer):
+    """Serializes an offer detail as an id and API link."""
+
+    url = serializers.HyperlinkedIdentityField(view_name='offer-detail')
+
+    class Meta:
+        model = OfferDetail
+        fields = ['id', 'url']
+
+
+class OfferUserSerializer(serializers.ModelSerializer):
+    """Serializes the public identity of an offer creator."""
+
+    class Meta:
+        model = User
+        fields = ['first_name', 'last_name', 'username']
+
+
+class OfferReadSerializer(serializers.ModelSerializer):
+    """Provides the common read representation of an offer."""
 
     user = serializers.PrimaryKeyRelatedField(
         source='creator',
         read_only=True,
     )
-    details = OfferDetailSerializer(many=True)
+    details = OfferDetailLinkSerializer(many=True, read_only=True)
     min_price = serializers.SerializerMethodField()
     min_delivery_time = serializers.SerializerMethodField()
 
@@ -52,7 +71,6 @@ class OfferSerializer(serializers.ModelSerializer):
             'min_price',
             'min_delivery_time',
         ]
-        read_only_fields = ['id', 'user', 'created_at', 'updated_at']
 
     def get_min_price(self, obj):
         value = getattr(obj, 'min_price', None)
@@ -67,14 +85,38 @@ class OfferSerializer(serializers.ModelSerializer):
         field = 'delivery_time_in_days'
         return obj.details.aggregate(value=Min(field))['value']
 
+
+class OfferListSerializer(OfferReadSerializer):
+    """Adds creator details to the offer list representation."""
+
+    user_details = OfferUserSerializer(source='creator', read_only=True)
+
+    class Meta(OfferReadSerializer.Meta):
+        fields = OfferReadSerializer.Meta.fields + ['user_details']
+
+
+class OfferWriteSerializer(serializers.ModelSerializer):
+    """Creates and updates offers together with their pricing tiers."""
+
+    details = OfferDetailSerializer(many=True)
+
+    class Meta:
+        model = Offer
+        fields = ['id', 'title', 'image', 'description', 'details']
+        read_only_fields = ['id']
+
     def validate_details(self, value):
-        detail_types = [item['offer_type'] for item in value]
+        detail_types = [item.get('offer_type') for item in value]
+        if None in detail_types or len(detail_types) != len(set(detail_types)):
+            raise serializers.ValidationError(
+                'Each detail requires a unique offer_type.'
+            )
         expected = {
             OfferDetail.BASIC,
             OfferDetail.STANDARD,
             OfferDetail.PREMIUM,
         }
-        if len(detail_types) != 3 or set(detail_types) != expected:
+        if self.instance is None and set(detail_types) != expected:
             raise serializers.ValidationError(
                 'Basic, standard and premium details are required.'
             )
@@ -100,9 +142,18 @@ class OfferSerializer(serializers.ModelSerializer):
         return instance
 
     def _update_details(self, instance, details_data):
-        current = {item.offer_type: item for item in instance.details.all()}
         for detail_data in details_data:
-            detail = current[detail_data['offer_type']]
-            for field, value in detail_data.items():
-                setattr(detail, field, value)
-            detail.save()
+            offer_type = detail_data.pop('offer_type')
+            OfferDetail.objects.update_or_create(
+                offer=instance,
+                offer_type=offer_type,
+                defaults=detail_data,
+            )
+
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        data['details'] = OfferDetailSerializer(
+            instance.details.all(),
+            many=True,
+        ).data
+        return data

@@ -31,38 +31,47 @@ class AuthApiTests(APITestCase):
         Profile.objects.create(user=user)
         return user
 
-    def test_registration_creates_user_profile_and_token(self):
-        data = {
-            'username': 'newuser',
-            'email': 'new@example.com',
+    def registration_data(self, username='newuser', email='new@example.com'):
+        return {
+            'username': username,
+            'email': email,
             'password': 'Testpass123!',
             'repeated_password': 'Testpass123!',
             'type': User.CUSTOMER,
         }
-        response = self.client.post('/api/registration/', data, format='json')
+
+    def test_registration_creates_user_profile_and_token(self):
+        response = self.client.post(
+            '/api/registration/',
+            self.registration_data(),
+            format='json',
+        )
         user = User.objects.get(username='newuser')
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         self.assertTrue(user.check_password('Testpass123!'))
         self.assertTrue(Profile.objects.filter(user=user).exists())
+        self.assertEqual(response.data['email'], 'new@example.com')
         self.assertIn('token', response.data)
 
     def test_registration_rejects_password_mismatch(self):
-        data = {
-            'username': 'newuser',
-            'email': 'new@example.com',
-            'password': 'Testpass123!',
-            'repeated_password': 'Wrongpass123!',
-            'type': User.CUSTOMER,
-        }
+        data = self.registration_data()
+        data['repeated_password'] = 'Wrongpass123!'
+        response = self.client.post('/api/registration/', data, format='json')
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_registration_rejects_duplicate_email(self):
+        self.create_user('existing', User.CUSTOMER)
+        data = self.registration_data(email='EXISTING@example.com')
         response = self.client.post('/api/registration/', data, format='json')
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
     def test_login_returns_token(self):
-        self.create_user('customer', User.CUSTOMER)
+        user = self.create_user('customer', User.CUSTOMER)
         data = {'username': 'customer', 'password': 'Testpass123!'}
         response = self.client.post('/api/login/', data, format='json')
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data['username'], 'customer')
+        self.assertEqual(response.data['email'], user.email)
         self.assertIn('token', response.data)
 
     def test_login_rejects_invalid_credentials(self):
@@ -110,6 +119,17 @@ class AuthApiTests(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assert_profile_values(user)
 
+    def test_profile_rejects_duplicate_email(self):
+        user = self.create_user('customer', User.CUSTOMER)
+        other = self.create_user('other', User.CUSTOMER)
+        self.client.force_authenticate(user=user)
+        response = self.client.patch(
+            f'/api/profile/{user.id}/',
+            {'email': other.email.upper()},
+            format='json',
+        )
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
     def test_user_can_upload_profile_image(self):
         user = self.create_user('customer', User.CUSTOMER)
         self.client.force_authenticate(user=user)
@@ -132,13 +152,22 @@ class AuthApiTests(APITestCase):
         )
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
 
-    def test_public_profile_lists_are_filtered_by_type(self):
+    def test_profile_lists_require_authentication(self):
+        business = self.client.get('/api/profiles/business/')
+        customer = self.client.get('/api/profiles/customer/')
+        self.assertEqual(business.status_code, status.HTTP_401_UNAUTHORIZED)
+        self.assertEqual(customer.status_code, status.HTTP_401_UNAUTHORIZED)
+
+    def test_profile_lists_use_role_specific_fields(self):
         customer = self.create_user('customer', User.CUSTOMER)
         business = self.create_user('business', User.BUSINESS)
+        self.client.force_authenticate(user=customer)
         business_response = self.client.get('/api/profiles/business/')
         customer_response = self.client.get('/api/profiles/customer/')
-        self.assertEqual(business_response.status_code, status.HTTP_200_OK)
-        self.assertEqual(customer_response.status_code, status.HTTP_200_OK)
+        business_fields = set(business_response.data[0])
+        customer_fields = set(customer_response.data[0])
         self.assertEqual(business_response.data[0]['user'], business.id)
         self.assertEqual(customer_response.data[0]['user'], customer.id)
-
+        self.assertIn('working_hours', business_fields)
+        self.assertNotIn('working_hours', customer_fields)
+        self.assertNotIn('email', customer_fields)

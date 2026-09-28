@@ -6,6 +6,8 @@ from rest_framework.response import Response
 
 from auth_app.api.permissions import IsProfileOwnerOrReadOnly
 from auth_app.api.serializers import (
+    BusinessProfileSerializer,
+    CustomerProfileSerializer,
     LoginSerializer,
     ProfileSerializer,
     RegistrationSerializer,
@@ -13,23 +15,31 @@ from auth_app.api.serializers import (
 from auth_app.models import Profile, User
 
 
+def auth_response_data(user, token):
+    return {
+        'token': token.key,
+        'user_id': user.id,
+        'username': user.username,
+        'email': user.email,
+    }
+
+
 class RegistrationView(generics.GenericAPIView):
     """Registers a user and returns an authentication token."""
 
     serializer_class = RegistrationSerializer
     permission_classes = [AllowAny]
+    authentication_classes = []
 
     def post(self, request):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         user = serializer.save()
         token, _ = Token.objects.get_or_create(user=user)
-        data = {
-            'token': token.key,
-            'user_id': user.id,
-            'username': user.username,
-        }
-        return Response(data, status=status.HTTP_201_CREATED)
+        return Response(
+            auth_response_data(user, token),
+            status=status.HTTP_201_CREATED,
+        )
 
 
 class LoginView(generics.GenericAPIView):
@@ -37,18 +47,14 @@ class LoginView(generics.GenericAPIView):
 
     serializer_class = LoginSerializer
     permission_classes = [AllowAny]
+    authentication_classes = []
 
     def post(self, request):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         user = serializer.validated_data['user']
         token, _ = Token.objects.get_or_create(user=user)
-        data = {
-            'token': token.key,
-            'user_id': user.id,
-            'username': user.username,
-        }
-        return Response(data, status=status.HTTP_200_OK)
+        return Response(auth_response_data(user, token))
 
 
 class ProfileView(generics.GenericAPIView):
@@ -74,14 +80,14 @@ class ProfileView(generics.GenericAPIView):
         )
         serializer.is_valid(raise_exception=True)
         serializer.save()
-        return Response(serializer.data, status=status.HTTP_200_OK)
+        return Response(serializer.data)
 
 
 class BusinessProfileListView(generics.ListAPIView):
     """Lists profiles belonging to business users."""
 
-    serializer_class = ProfileSerializer
-    permission_classes = [AllowAny]
+    serializer_class = BusinessProfileSerializer
+    permission_classes = [IsAuthenticated]
     queryset = Profile.objects.select_related('user').filter(
         user__type=User.BUSINESS
     )
@@ -90,8 +96,8 @@ class BusinessProfileListView(generics.ListAPIView):
 class CustomerProfileListView(generics.ListAPIView):
     """Lists profiles belonging to customer users."""
 
-    serializer_class = ProfileSerializer
-    permission_classes = [AllowAny]
+    serializer_class = CustomerProfileSerializer
+    permission_classes = [IsAuthenticated]
     queryset = Profile.objects.select_related('user').filter(
         user__type=User.CUSTOMER
     )

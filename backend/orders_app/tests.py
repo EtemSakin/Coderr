@@ -66,7 +66,16 @@ class OrderApiTests(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         self.assertEqual(order.business_user, self.business)
         self.assertEqual(order.offer_type, OfferDetail.BASIC)
-        self.assertEqual(order.status, Order.IN_PROGRESS)
+        self.assertEqual(response.data['status'], Order.IN_PROGRESS)
+
+    def test_unknown_offer_detail_returns_not_found(self):
+        self.client.force_authenticate(user=self.customer)
+        response = self.client.post(
+            '/api/orders/',
+            {'offer_detail_id': 999999},
+            format='json',
+        )
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
 
     def test_business_cannot_create_order(self):
         self.client.force_authenticate(user=self.business)
@@ -129,6 +138,17 @@ class OrderApiTests(APITestCase):
         order.refresh_from_db()
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(order.status, Order.COMPLETED)
+        self.assertEqual(response.data['id'], order.id)
+
+    def test_other_business_gets_forbidden_on_order_update(self):
+        order = self.create_order()
+        self.client.force_authenticate(user=self.other_business)
+        response = self.client.patch(
+            f'/api/orders/{order.id}/',
+            {'status': Order.COMPLETED},
+            format='json',
+        )
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
 
     def test_customer_cannot_update_order_status(self):
         order = self.create_order()
@@ -140,13 +160,12 @@ class OrderApiTests(APITestCase):
         )
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
 
-    def test_offer_detail_cannot_be_changed_after_creation(self):
+    def test_order_update_rejects_non_status_fields(self):
         order = self.create_order()
-        other_detail = self.create_detail(self.business)
         self.client.force_authenticate(user=self.business)
         response = self.client.patch(
             f'/api/orders/{order.id}/',
-            {'offer_detail_id': other_detail.id},
+            {'status': Order.COMPLETED, 'price': '1.00'},
             format='json',
         )
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
@@ -161,12 +180,26 @@ class OrderApiTests(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
         self.assertFalse(Order.objects.filter(id=order.id).exists())
 
-    def test_order_count_endpoints_are_public(self):
+    def test_order_count_endpoints_require_authentication(self):
+        progress = self.client.get(f'/api/order-count/{self.business.id}/')
+        completed = self.client.get(
+            f'/api/completed-order-count/{self.business.id}/'
+        )
+        self.assertEqual(progress.status_code, status.HTTP_401_UNAUTHORIZED)
+        self.assertEqual(completed.status_code, status.HTTP_401_UNAUTHORIZED)
+
+    def test_order_count_endpoints_return_counts(self):
         self.create_order()
         self.create_order(Order.COMPLETED)
+        self.client.force_authenticate(user=self.customer)
         progress = self.client.get(f'/api/order-count/{self.business.id}/')
         completed = self.client.get(
             f'/api/completed-order-count/{self.business.id}/'
         )
         self.assertEqual(progress.data['order_count'], 1)
         self.assertEqual(completed.data['completed_order_count'], 1)
+
+    def test_order_count_rejects_customer_id(self):
+        self.client.force_authenticate(user=self.customer)
+        response = self.client.get(f'/api/order-count/{self.customer.id}/')
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)

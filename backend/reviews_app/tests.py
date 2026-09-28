@@ -30,8 +30,14 @@ class ReviewApiTests(APITestCase):
             description='Great service',
         )
 
-    def test_review_list_is_public(self):
+    def test_review_list_requires_authentication(self):
         self.create_review()
+        response = self.client.get('/api/reviews/')
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+    def test_authenticated_user_can_list_reviews(self):
+        self.create_review()
+        self.client.force_authenticate(user=self.customer)
         response = self.client.get('/api/reviews/')
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(len(response.data), 1)
@@ -99,8 +105,9 @@ class ReviewApiTests(APITestCase):
         review.refresh_from_db()
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(review.rating, 5)
+        self.assertEqual(response.data['business_user'], self.business.id)
 
-    def test_business_user_cannot_be_changed(self):
+    def test_review_update_rejects_non_editable_fields(self):
         review = self.create_review()
         self.client.force_authenticate(user=self.customer)
         response = self.client.patch(
@@ -138,6 +145,7 @@ class ReviewApiTests(APITestCase):
             business=self.other_business,
             rating=5,
         )
+        self.client.force_authenticate(user=self.customer)
         business_ids = self.review_ids(
             f'/api/reviews/?business_user_id={self.business.id}'
         )
@@ -167,4 +175,3 @@ class ReviewApiTests(APITestCase):
     def test_base_info_returns_zero_average_without_reviews(self):
         response = self.client.get('/api/base-info/')
         self.assertEqual(response.data['average_rating'], 0)
-

@@ -23,6 +23,14 @@ class RegistrationSerializer(serializers.ModelSerializer):
             'type',
         ]
 
+    def validate_email(self, value):
+        queryset = User.objects.filter(email__iexact=value)
+        if queryset.exists():
+            raise serializers.ValidationError(
+                'This email address is already in use.'
+            )
+        return value
+
     def validate(self, attrs):
         if attrs['password'] != attrs['repeated_password']:
             raise serializers.ValidationError(
@@ -88,6 +96,16 @@ class ProfileSerializer(serializers.ModelSerializer):
             'created_at',
         ]
 
+    def validate_email(self, value):
+        queryset = User.objects.filter(email__iexact=value)
+        if self.instance is not None:
+            queryset = queryset.exclude(pk=self.instance.user_id)
+        if queryset.exists():
+            raise serializers.ValidationError(
+                'This email address is already in use.'
+            )
+        return value
+
     def update(self, instance, validated_data):
         user_data = validated_data.pop('user', {})
         if user_data:
@@ -95,3 +113,35 @@ class ProfileSerializer(serializers.ModelSerializer):
                 setattr(instance.user, field, value)
             instance.user.save(update_fields=user_data.keys())
         return super().update(instance, validated_data)
+
+
+class BusinessProfileSerializer(ProfileSerializer):
+    """Serializes the public business profile list representation."""
+
+    class Meta(ProfileSerializer.Meta):
+        fields = [
+            'user',
+            'username',
+            'first_name',
+            'last_name',
+            'file',
+            'location',
+            'tel',
+            'description',
+            'working_hours',
+            'type',
+        ]
+
+
+class CustomerProfileSerializer(ProfileSerializer):
+    """Serializes the compact customer profile list representation."""
+
+    class Meta(ProfileSerializer.Meta):
+        fields = [
+            'user',
+            'username',
+            'first_name',
+            'last_name',
+            'file',
+            'type',
+        ]

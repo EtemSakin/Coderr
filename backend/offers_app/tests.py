@@ -94,7 +94,6 @@ class OfferApiTests(APITestCase):
         }
         response = self.client.post('/api/offers/', data, format='json')
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
-        self.assertEqual(response.data['user'], self.business.id)
         self.assertEqual(len(response.data['details']), 3)
 
     def test_customer_cannot_create_offer(self):
@@ -129,6 +128,14 @@ class OfferApiTests(APITestCase):
         self.assertEqual(len(response.data['results']), 2)
         self.assertEqual(len(limited.data['results']), 1)
 
+    def test_offer_list_uses_links_and_user_details(self):
+        response = self.client.get('/api/offers/')
+        item = response.data['results'][0]
+        self.assertEqual(item['user'], self.business.id)
+        self.assertEqual(item['user_details']['username'], 'business')
+        self.assertEqual(set(item['details'][0]), {'id', 'url'})
+        self.assertIn('/api/offerdetails/', item['details'][0]['url'])
+
     def test_offer_list_supports_search_and_filters(self):
         self.create_offer(self.other_business, 'Video Editing', 80, 8)
         search = self.client.get('/api/offers/?search=Logo')
@@ -150,20 +157,31 @@ class OfferApiTests(APITestCase):
         ids = [item['id'] for item in response.data['results']]
         self.assertEqual(ids, [self.offer.id, expensive.id])
 
-    def test_owner_can_update_offer_and_details(self):
+    def test_offer_retrieve_requires_authentication(self):
+        response = self.client.get(f'/api/offers/{self.offer.id}/')
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+    def test_authenticated_offer_retrieve_uses_detail_links(self):
+        self.client.force_authenticate(user=self.customer)
+        response = self.client.get(f'/api/offers/{self.offer.id}/')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertNotIn('user_details', response.data)
+        self.assertEqual(set(response.data['details'][0]), {'id', 'url'})
+
+    def test_owner_can_update_single_offer_detail(self):
         self.client.force_authenticate(user=self.business)
-        data = {
-            'title': 'Updated Logo',
-            'details': self.detail_data('Updated'),
-        }
+        basic = self.detail_data('Updated')[0]
         response = self.client.patch(
-            f'/api/offers/{self.offer.id}/', data, format='json'
+            f'/api/offers/{self.offer.id}/',
+            {'title': 'Updated Logo', 'details': [basic]},
+            format='json',
         )
         self.offer.refresh_from_db()
-        basic = self.offer.details.get(offer_type=OfferDetail.BASIC)
+        detail = self.offer.details.get(offer_type=OfferDetail.BASIC)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(self.offer.title, 'Updated Logo')
-        self.assertEqual(basic.title, 'Updated Basic')
+        self.assertEqual(detail.title, 'Updated Basic')
+        self.assertEqual(len(response.data['details']), 3)
 
     def test_owner_can_upload_offer_image(self):
         self.client.force_authenticate(user=self.business)
@@ -192,8 +210,14 @@ class OfferApiTests(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
         self.assertFalse(Offer.objects.filter(id=self.offer.id).exists())
 
-    def test_offer_detail_is_public(self):
+    def test_offer_detail_requires_authentication(self):
         detail = self.offer.details.first()
+        response = self.client.get(f'/api/offerdetails/{detail.id}/')
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+    def test_authenticated_user_can_read_offer_detail(self):
+        detail = self.offer.details.first()
+        self.client.force_authenticate(user=self.customer)
         response = self.client.get(f'/api/offerdetails/{detail.id}/')
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data['id'], detail.id)
